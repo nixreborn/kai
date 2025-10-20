@@ -18,7 +18,7 @@ from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Server-side master salt - should be loaded from environment in production
 # This provides an additional layer of security beyond user passwords
@@ -74,7 +74,7 @@ def derive_encryption_key(password: str, user_salt: str) -> bytes:
         combined_salt = salt_bytes + MASTER_SALT
 
         # Derive key using PBKDF2
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,  # 256 bits
             salt=combined_salt,

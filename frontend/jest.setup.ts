@@ -41,11 +41,13 @@ global.IntersectionObserver = class IntersectionObserver {
 }
 
 // Mock localStorage
-const localStorageMock = {
+const localStorageMock: Storage = {
+  length: 0,
   getItem: jest.fn(),
   setItem: jest.fn(),
   removeItem: jest.fn(),
   clear: jest.fn(),
+  key: jest.fn(() => null),
 }
 global.localStorage = localStorageMock
 

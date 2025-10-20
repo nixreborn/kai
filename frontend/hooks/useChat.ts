@@ -44,11 +44,12 @@ export function useChat({ userId, sessionId, autoSave = true }: UseChatOptions):
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let sessionsWithDates: ConversationSession[] = [];
     const storedSessions = localStorage.getItem(STORAGE_KEY);
     if (storedSessions) {
       const parsed = JSON.parse(storedSessions);
       // Convert date strings back to Date objects
-      const sessionsWithDates = parsed.map((session: ConversationSession) => ({
+      sessionsWithDates = parsed.map((session: ConversationSession) => ({
         ...session,
         created_at: new Date(session.created_at),
         updated_at: new Date(session.updated_at),

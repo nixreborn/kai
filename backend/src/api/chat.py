@@ -1,10 +1,12 @@
 """Chat endpoints for interacting with Kai."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ..agents.orchestrator import AgentOrchestrator
 from ..models.agent_models import AgentResponse, UserProfile
+from ..security.rate_limiter import RateLimits, limiter
+from ..security.validators import sanitize_input, validate_chat_message
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -31,7 +33,8 @@ class ChatResponse(BaseModel):
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+@limiter.limit(RateLimits.CHAT_MESSAGE)
+async def chat(request: Request, chat_request: ChatRequest) -> ChatResponse:
     """
     Send a message to Kai and get a response.
 
@@ -41,31 +44,39 @@ async def chat(request: ChatRequest) -> ChatResponse:
     3. Genetic agent updates user profile
     4. Wellness agent monitors patterns
     """
+    # Validate and sanitize chat message
+    is_valid, error_msg = validate_chat_message(chat_request.message)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    # Sanitize message content
+    sanitized_message = sanitize_input(chat_request.message, max_length=5000)
+
     # Get or create user profile
-    if request.user_id not in user_profiles:
-        user_profiles[request.user_id] = UserProfile(
-            user_id=request.user_id,
+    if chat_request.user_id not in user_profiles:
+        user_profiles[chat_request.user_id] = UserProfile(
+            user_id=chat_request.user_id,
             communication_style="supportive",
         )
 
     # Get or create orchestrator
-    if request.user_id not in orchestrators:
-        orchestrators[request.user_id] = AgentOrchestrator()
+    if chat_request.user_id not in orchestrators:
+        orchestrators[chat_request.user_id] = AgentOrchestrator()
 
-    user_profile = user_profiles[request.user_id]
-    orchestrator = orchestrators[request.user_id]
+    user_profile = user_profiles[chat_request.user_id]
+    orchestrator = orchestrators[chat_request.user_id]
 
     try:
         # Process message through multi-agent system
         agent_response: AgentResponse = await orchestrator.process_message(
-            user_message=request.message,
+            user_message=sanitized_message,
             user_profile=user_profile,
-            conversation_history=request.conversation_history,
+            conversation_history=chat_request.conversation_history,
         )
 
         # Update user profile if changed
         if "user_profile" in agent_response.metadata:
-            user_profiles[request.user_id] = UserProfile(
+            user_profiles[chat_request.user_id] = UserProfile(
                 **agent_response.metadata["user_profile"]
             )
 
@@ -83,7 +94,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
 
 
 @router.get("/proactive/{user_id}", response_model=ChatResponse | None)
-async def get_proactive_check_in(user_id: str) -> ChatResponse | None:
+@limiter.limit(RateLimits.PROACTIVE_CHECK_IN)
+async def get_proactive_check_in(request: Request, user_id: str) -> ChatResponse | None:
     """
     Get a proactive check-in message for the user.
 

@@ -22,6 +22,24 @@ services:
     networks:
       - kai-network
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: kai-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kai-network
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
   # FastAPI Backend
   backend:
     build:
@@ -32,6 +50,8 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       # FastAPI Configuration
@@ -47,6 +67,9 @@ services:
 
       # Database Configuration
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kai}:${POSTGRES_PASSWORD:-kai}@postgres:5432/${POSTGRES_DB:-kai_db}
+
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379/0
 
       # Security
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-here-change-in-production}
@@ -142,6 +165,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   backend_logs:
     driver: local

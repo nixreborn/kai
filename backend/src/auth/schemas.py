@@ -52,3 +52,10 @@ class MessageResponse(BaseModel):
     """Generic message response schema."""
 
     message: str
+
+
+class PasswordChange(BaseModel):
+    """Password change request schema."""
+
+    old_password: str
+    new_password: str = Field(..., min_length=8, max_length=100)

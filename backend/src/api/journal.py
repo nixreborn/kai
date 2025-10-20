@@ -1,7 +1,7 @@
 """Journal endpoints for the Kai mental wellness platform."""
 
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Annotated, Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..agents.kai_agent import kai_agent
 from ..agents.wellness_agent import analyze_wellness_patterns
+from ..auth.dependencies import get_current_active_user
 from ..core.database import get_db
 from ..core.llm_client import get_llm_model
 from ..models.agent_models import WellnessInsight
-from ..models.database import JournalEntry
+from ..models.database import JournalEntry, User
 from ..models.journal_models import (
     JournalAnalysisResponse,
     JournalEntryCreate,
@@ -25,6 +26,12 @@ from ..models.journal_models import (
     JournalInsightsResponse,
     JournalPrompt,
     JournalPromptsResponse,
+)
+from ..security.dependencies import get_encryption_service
+from ..security.encryption import EncryptionService
+from ..security.journal_encryption import (
+    decrypt_journal_entry_in_place,
+    encrypt_journal_entry,
 )
 
 router = APIRouter(prefix="/api/journal", tags=["journal"])
@@ -56,36 +63,45 @@ prompt_agent = Agent(
 @router.post("/entries", response_model=JournalEntryResponse, status_code=201)
 async def create_journal_entry(
     entry: JournalEntryCreate,
-    user_id: str = Query(..., description="User identifier"),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """
     Create a new journal entry.
 
     This endpoint allows users to save their journal entries with optional mood tracking,
-    tags, and images.
+    tags, and images. If the user has encryption configured and provides the encryption
+    password in the X-Encryption-Password header, the entry will be encrypted.
     """
     # Create new journal entry
     db_entry = JournalEntry(
-        user_id=user_id,
-        title=entry.title,
+        user_id=current_user.id,
         content=entry.content,
-        mood=entry.mood,
-        mood_emoji=entry.mood_emoji,
         tags=entry.tags,
-        images=entry.images,
+        mood=entry.mood,
     )
+
+    # Encrypt if encryption service is available
+    if encryption_service:
+        await encrypt_journal_entry(db_entry, encryption_service)
 
     db.add(db_entry)
     await db.commit()
     await db.refresh(db_entry)
+
+    # Decrypt for response if encrypted
+    if encryption_service and db_entry.is_encrypted:
+        await decrypt_journal_entry_in_place(db_entry, encryption_service)
 
     return db_entry
 
 
 @router.get("/entries", response_model=JournalEntryList)
 async def list_journal_entries(
-    user_id: str = Query(..., description="User identifier"),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     search: str | None = Query(None, description="Search in title and content"),
@@ -94,7 +110,6 @@ async def list_journal_entries(
     mood_max: float | None = Query(None, ge=1.0, le=10.0, description="Maximum mood rating"),
     start_date: datetime | None = Query(None, description="Filter entries from this date"),
     end_date: datetime | None = Query(None, description="Filter entries until this date"),
-    db: AsyncSession = Depends(get_db),
 ) -> JournalEntryList:
     """
     List user's journal entries with pagination, search, and filters.
@@ -106,7 +121,7 @@ async def list_journal_entries(
     - Date range filtering
     """
     # Build query
-    query = select(JournalEntry).where(JournalEntry.user_id == user_id)
+    query = select(JournalEntry).where(JournalEntry.user_id == current_user.id)
 
     # Apply filters
     if search:
@@ -149,6 +164,12 @@ async def list_journal_entries(
     result = await db.execute(query)
     entries = list(result.scalars().all())
 
+    # Decrypt entries if encryption service is available
+    if encryption_service:
+        for entry in entries:
+            if entry.is_encrypted:
+                await decrypt_journal_entry_in_place(entry, encryption_service)
+
     return JournalEntryList(
         entries=entries,
         total=total,
@@ -161,19 +182,24 @@ async def list_journal_entries(
 @router.get("/entries/{entry_id}", response_model=JournalEntryResponse)
 async def get_journal_entry(
     entry_id: UUID,
-    user_id: str = Query(..., description="User identifier"),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """Get a specific journal entry by ID."""
     query = select(JournalEntry).where(
         JournalEntry.id == entry_id,
-        JournalEntry.user_id == user_id,
+        JournalEntry.user_id == current_user.id,
     )
     result = await db.execute(query)
     entry = result.scalar_one_or_none()
 
     if not entry:
         raise HTTPException(status_code=404, detail="Journal entry not found")
+
+    # Decrypt if encrypted and service available
+    if encryption_service and entry.is_encrypted:
+        await decrypt_journal_entry_in_place(entry, encryption_service)
 
     return entry
 
@@ -182,14 +208,15 @@ async def get_journal_entry(
 async def update_journal_entry(
     entry_id: UUID,
     entry_update: JournalEntryUpdate,
-    user_id: str = Query(..., description="User identifier"),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """Update a journal entry."""
     # Get existing entry
     query = select(JournalEntry).where(
         JournalEntry.id == entry_id,
-        JournalEntry.user_id == user_id,
+        JournalEntry.user_id == current_user.id,
     )
     result = await db.execute(query)
     entry = result.scalar_one_or_none()
@@ -199,13 +226,24 @@ async def update_journal_entry(
 
     # Update fields
     update_data = entry_update.model_dump(exclude_unset=True)
+
+    # If content is being updated and entry is encrypted, re-encrypt
+    if "content" in update_data and encryption_service and entry.is_encrypted:
+        entry.content = update_data["content"]
+        await encrypt_journal_entry(entry, encryption_service)
+        # Remove content from update_data as it's already handled
+        update_data.pop("content")
+
+    # Update remaining fields
     for field, value in update_data.items():
         setattr(entry, field, value)
 
-    entry.updated_at = datetime.utcnow()
-
     await db.commit()
     await db.refresh(entry)
+
+    # Decrypt for response if encrypted
+    if encryption_service and entry.is_encrypted:
+        await decrypt_journal_entry_in_place(entry, encryption_service)
 
     return entry
 
@@ -213,13 +251,13 @@ async def update_journal_entry(
 @router.delete("/entries/{entry_id}", status_code=204)
 async def delete_journal_entry(
     entry_id: UUID,
-    user_id: str = Query(..., description="User identifier"),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Delete a journal entry."""
     query = select(JournalEntry).where(
         JournalEntry.id == entry_id,
-        JournalEntry.user_id == user_id,
+        JournalEntry.user_id == current_user.id,
     )
     result = await db.execute(query)
     entry = result.scalar_one_or_none()

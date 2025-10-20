@@ -19,6 +19,12 @@ dependencies = [
     "python-jose[cryptography]>=3.3.0",
     "passlib[bcrypt]>=1.7.4",
     "email-validator>=2.0.0",
+    "cryptography>=42.0.0",
+    "redis>=5.0.0",
+    "hiredis>=2.2.0",
+    "slowapi>=0.1.9",
+    "pypdf2>=3.0.0",
+    "pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]

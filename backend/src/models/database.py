@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -21,14 +21,16 @@ class JournalEntry(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    content = Column(Text, nullable=False)
-    encrypted_content = Column(Text, nullable=True)  # For future encryption support
+    content = Column(Text, nullable=True)  # Deprecated - use encrypted_content
+    encrypted_content = Column(Text, nullable=True)  # Encrypted journal content
+    is_encrypted = Column(Boolean, default=False, nullable=False)  # Flag to indicate encryption status
     tags = Column(JSON, default=list, nullable=False)  # List of tag strings
     mood = Column(String(50), nullable=True)  # e.g., "happy", "sad", "anxious"
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships
     user = relationship("User", back_populates="journal_entries")
+    documents = relationship("Document", back_populates="journal_entry", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         """String representation."""
@@ -47,11 +49,16 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    # Encryption fields
+    encryption_salt = Column(String(255), nullable=True)  # User-specific salt for key derivation
+    encryption_key_hash = Column(String(255), nullable=True)  # Hash of encryption key for verification
+
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     journal_entries = relationship("JournalEntry", back_populates="user", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         """String representation."""
@@ -90,7 +97,7 @@ class Conversation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     messages = Column(JSON, default=list, nullable=False)  # List of message objects
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Relationships
     user = relationship("User", back_populates="conversations")
@@ -122,3 +129,39 @@ class Session(Base):
     def is_expired(self) -> bool:
         """Check if the session is expired."""
         return datetime.utcnow() > self.expires_at
+
+
+class Document(Base):
+    """Document model for storing uploaded files associated with journal entries."""
+
+    __tablename__ = "documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    journal_entry_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("journal_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    file_path = Column(String(500), nullable=False)  # Relative path to file
+    file_name = Column(String(255), nullable=False)  # Original filename
+    file_type = Column(String(100), nullable=False)  # MIME type
+    file_size = Column(BigInteger, nullable=False)  # Size in bytes
+    file_category = Column(String(50), nullable=False)  # 'image' or 'document'
+    extracted_text = Column(Text, nullable=True)  # Extracted text from PDFs
+    file_metadata = Column(JSON, default=dict, nullable=False)  # Additional metadata
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    journal_entry = relationship("JournalEntry", back_populates="documents")
+    user = relationship("User", back_populates="documents")
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"<Document(id={self.id}, file_name={self.file_name}, journal_entry_id={self.journal_entry_id})>"

@@ -24,8 +24,20 @@ class Settings(BaseSettings):
     llm_api_key: str = "optional-api-key"
     llm_model: str = "default"
 
+    # LLM Connection Settings
+    llm_timeout: float = 30.0
+    llm_max_retries: int = 3
+    llm_retry_delay: float = 1.0
+
+    # Circuit Breaker Settings
+    llm_circuit_breaker_threshold: int = 5
+    llm_circuit_breaker_timeout: float = 60.0
+
     # Database Configuration
     database_url: str = "postgresql+asyncpg://kai:kai@localhost:5432/kai_db"
+
+    # Redis Configuration
+    redis_url: str = "redis://localhost:6379/0"
 
     # Security
     secret_key: str = "changeme-in-production"

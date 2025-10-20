@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Message, ConversationSession } from '@/lib/types/chat';
+import { Message, ConversationSession, WellnessInsight, UserTrait } from '@/lib/types/chat';
 import { sendMessage, clearSession as apiClearSession } from '@/lib/api/chat';
 
 const STORAGE_KEY = 'kai-chat-sessions';
@@ -156,7 +156,13 @@ export function useChat({ userId, sessionId, autoSave = true }: UseChatOptions):
         role: 'assistant',
         content: response.response,
         timestamp: new Date(),
-        metadata: response.metadata,
+        metadata: {
+          agent_role: response.metadata.agent_role as 'kai' | 'guardrail' | 'genetic' | 'wellness',
+          confidence: response.metadata.confidence,
+          safety_warning: response.metadata.safety_warning as boolean | undefined,
+          wellness_insights: response.metadata.wellness_insights as WellnessInsight[] | undefined,
+          user_traits: response.metadata.user_traits as UserTrait[] | undefined,
+        },
       };
 
       setMessages(prev => [...prev, assistantMessage]);

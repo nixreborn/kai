@@ -1,9 +1,9 @@
 """SQLAlchemy database models."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import DeclarativeBase, relationship
 

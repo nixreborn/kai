@@ -14,7 +14,6 @@ Security features:
 import base64
 import hashlib
 import secrets
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
@@ -282,7 +281,7 @@ def setup_user_encryption(password: str) -> tuple[str, bytes, str]:
 
 def verify_and_get_encryption_key(
     password: str, user_salt: str, stored_key_hash: str
-) -> Optional[bytes]:
+) -> bytes | None:
     """Verify password and return encryption key if correct.
 
     Args:

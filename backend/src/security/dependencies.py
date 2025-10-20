@@ -4,21 +4,19 @@ This module provides dependency injection for encryption services
 and secure data handling in API endpoints.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.dependencies import get_current_active_user
 from ..models.database import User
-from ..models.db_session import get_db
 from .encryption import EncryptionService
 
 
 async def get_encryption_service(
     current_user: Annotated[User, Depends(get_current_active_user)],
-    x_encryption_password: Annotated[Optional[str], Header()] = None,
-) -> Optional[EncryptionService]:
+    x_encryption_password: Annotated[str | None, Header()] = None,
+) -> EncryptionService | None:
     """Get encryption service for the current user.
 
     This dependency attempts to create an encryption service for the user.
@@ -55,7 +53,7 @@ async def get_encryption_service(
 
 async def require_encryption_service(
     current_user: Annotated[User, Depends(get_current_active_user)],
-    x_encryption_password: Annotated[Optional[str], Header()] = None,
+    x_encryption_password: Annotated[str | None, Header()] = None,
 ) -> EncryptionService:
     """Require encryption service for the current user.
 

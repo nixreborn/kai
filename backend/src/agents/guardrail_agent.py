@@ -4,7 +4,7 @@ from pydantic_ai import Agent
 
 from ..core.config import settings
 from ..core.llm_client import get_llm_model
-from ..models.agent_models import GuardrailResult, MessageSafety
+from ..models.agent_models import GuardrailResult
 
 GUARDRAIL_SYSTEM_PROMPT = """You are a safety guardrail agent for a mental wellness platform.
 

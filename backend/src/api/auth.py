@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -23,7 +22,6 @@ from src.core.config import settings
 from src.models.database import Session, User, UserProfile
 from src.models.db_session import get_db
 from src.security.encryption import (
-    EncryptionService,
     rotate_encryption_key,
     setup_user_encryption,
 )

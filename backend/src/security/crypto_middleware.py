@@ -5,8 +5,8 @@ for FastAPI applications. It can be used as a context manager to handle encrypti
 keys during request processing.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Optional
 
 from fastapi import HTTPException, Request, status
 
@@ -22,7 +22,7 @@ class EncryptionContext:
 
     def __init__(self) -> None:
         """Initialize encryption context."""
-        self._encryption_service: Optional[EncryptionService] = None
+        self._encryption_service: EncryptionService | None = None
 
     def set_encryption_service(self, service: EncryptionService) -> None:
         """Set the encryption service for this context.
@@ -32,7 +32,7 @@ class EncryptionContext:
         """
         self._encryption_service = service
 
-    def get_encryption_service(self) -> Optional[EncryptionService]:
+    def get_encryption_service(self) -> EncryptionService | None:
         """Get the current encryption service.
 
         Returns:
@@ -106,7 +106,7 @@ async def encryption_session(
         context.clear()
 
 
-def get_current_encryption_service() -> Optional[EncryptionService]:
+def get_current_encryption_service() -> EncryptionService | None:
     """Get the encryption service from the current context.
 
     This is useful for dependency injection in FastAPI endpoints.
@@ -192,7 +192,7 @@ class CryptoMiddleware:
 # Utility decorators and functions
 
 
-def encrypt_field(data: str, service: Optional[EncryptionService] = None) -> str:
+def encrypt_field(data: str, service: EncryptionService | None = None) -> str:
     """Encrypt a field using the current or provided encryption service.
 
     Args:
@@ -212,7 +212,7 @@ def encrypt_field(data: str, service: Optional[EncryptionService] = None) -> str
 
 
 def decrypt_field(
-    encrypted_data: str, service: Optional[EncryptionService] = None
+    encrypted_data: str, service: EncryptionService | None = None
 ) -> str:
     """Decrypt a field using the current or provided encryption service.
 

@@ -83,7 +83,7 @@ def track_endpoint_performance(endpoint: str) -> Callable[..., Any]:
             try:
                 result = await func(*args, **kwargs)
                 return result
-            except Exception as e:
+            except Exception:
                 error = True
                 raise
             finally:
@@ -110,7 +110,7 @@ def track_endpoint_performance(endpoint: str) -> Callable[..., Any]:
             try:
                 result = func(*args, **kwargs)
                 return result
-            except Exception as e:
+            except Exception:
                 error = True
                 raise
             finally:

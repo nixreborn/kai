@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     # FastAPI Configuration
     host: str = "0.0.0.0"
     port: int = 8000
-    debug: bool = False
-    cors_origins: str = "http://localhost:3000"
+    debug: bool = True
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # LLM Configuration
     llm_base_url: str = "http://192.168.1.7:8000/v1"

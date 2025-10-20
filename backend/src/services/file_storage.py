@@ -5,7 +5,6 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from typing import BinaryIO
 
 from fastapi import HTTPException, UploadFile
 from PIL import Image

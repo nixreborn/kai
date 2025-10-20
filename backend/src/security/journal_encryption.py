@@ -4,18 +4,17 @@ This module provides utilities for encrypting and decrypting journal entries
 with proper error handling and user authentication.
 """
 
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.database import JournalEntry, User
-from .encryption import EncryptionService, decrypt_data, encrypt_data
+from .encryption import EncryptionService
 
 
 async def get_user_encryption_service(
     user_id: str, password: str, db: AsyncSession
-) -> Optional[EncryptionService]:
+) -> EncryptionService | None:
     """Get encryption service for a user.
 
     Args:
@@ -75,7 +74,7 @@ async def decrypt_journal_entry(
     """
     if entry.is_encrypted and entry.encrypted_content:
         return encryption_service.decrypt(entry.encrypted_content)
-    elif entry.content:
+    if entry.content:
         # Entry not encrypted, return plain content
         return entry.content
     return ""

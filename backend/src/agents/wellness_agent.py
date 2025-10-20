@@ -99,7 +99,7 @@ async def generate_proactive_prompt(insights: list[WellnessInsight]) -> str | No
         }
         return prompts.get(insight.category)
 
-    elif medium_severity:
+    if medium_severity:
         # Gentle check-in for medium concerns
         return "Hey, just checking in. What's been on your mind lately?"
 

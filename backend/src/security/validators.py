@@ -1,10 +1,10 @@
 """Input validation and sanitization utilities for Kai backend."""
 
 import re
-from typing import Any
 
-from email_validator import EmailNotValidError, validate_email as validate_email_lib
-from pydantic import BaseModel, Field, field_validator
+from email_validator import EmailNotValidError
+from email_validator import validate_email as validate_email_lib
+from pydantic import BaseModel, Field
 
 
 class PasswordValidationResult(BaseModel):

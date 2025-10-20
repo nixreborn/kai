@@ -1,7 +1,7 @@
 """Journal endpoints for the Kai mental wellness platform."""
 
 from datetime import datetime, timedelta
-from typing import Annotated, Any, Optional
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,12 +9,10 @@ from pydantic_ai import Agent
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..agents.kai_agent import kai_agent
 from ..agents.wellness_agent import analyze_wellness_patterns
 from ..auth.dependencies import get_current_active_user
 from ..core.database import get_db
 from ..core.llm_client import get_llm_model
-from ..models.agent_models import WellnessInsight
 from ..models.database import JournalEntry, User
 from ..models.journal_models import (
     JournalAnalysisResponse,
@@ -65,7 +63,7 @@ async def create_journal_entry(
     entry: JournalEntryCreate,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
+    encryption_service: Annotated[EncryptionService | None, Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """
     Create a new journal entry.
@@ -101,7 +99,7 @@ async def create_journal_entry(
 async def list_journal_entries(
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
+    encryption_service: Annotated[EncryptionService | None, Depends(get_encryption_service)] = None,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     search: str | None = Query(None, description="Search in title and content"),
@@ -184,7 +182,7 @@ async def get_journal_entry(
     entry_id: UUID,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
+    encryption_service: Annotated[EncryptionService | None, Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """Get a specific journal entry by ID."""
     query = select(JournalEntry).where(
@@ -210,7 +208,7 @@ async def update_journal_entry(
     entry_update: JournalEntryUpdate,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    encryption_service: Annotated[Optional[EncryptionService], Depends(get_encryption_service)] = None,
+    encryption_service: Annotated[EncryptionService | None, Depends(get_encryption_service)] = None,
 ) -> JournalEntry:
     """Update a journal entry."""
     # Get existing entry

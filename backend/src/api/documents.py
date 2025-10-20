@@ -1,6 +1,5 @@
 """Document endpoints for managing file uploads."""
 
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile

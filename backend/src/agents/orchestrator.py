@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from openai import APIError, APITimeoutError, APIConnectionError
+from openai import APIConnectionError, APIError, APITimeoutError
 
 from ..core.llm_client import get_circuit_breaker
 from ..models.agent_models import (
@@ -11,7 +11,6 @@ from ..models.agent_models import (
     AgentRole,
     MessageSafety,
     UserProfile,
-    WellnessInsight,
 )
 from .genetic_agent import analyze_user_traits, update_user_profile
 from .guardrail_agent import assess_message_safety
@@ -201,7 +200,7 @@ class AgentOrchestrator:
         # Check if we have a similar cached response
         for cached_key, cached_response in self.response_cache.items():
             if cached_key.lower() in message_lower or message_lower in cached_key.lower():
-                logger.info(f"Using cached response for similar query")
+                logger.info("Using cached response for similar query")
                 return cached_response
 
         # Use last successful response if available
@@ -222,17 +221,16 @@ class AgentOrchestrator:
                 "- Crisis Text Line: Text HOME to 741741\n"
                 "- Emergency Services: 911"
             )
-        elif any(word in message_lower for word in ["how", "what", "when", "why"]):
+        if any(word in message_lower for word in ["how", "what", "when", "why"]):
             return (
                 "I want to help answer your question, but I'm experiencing technical issues. "
                 "Please try again in a moment, or feel free to share what's on your mind."
             )
-        else:
-            return (
-                "I hear you, and I'm here for you. I'm having some technical difficulties "
-                "at the moment, but please know your feelings matter. "
-                "Try reaching out again in a moment, or if urgent, please contact a crisis helpline."
-            )
+        return (
+            "I hear you, and I'm here for you. I'm having some technical difficulties "
+            "at the moment, but please know your feelings matter. "
+            "Try reaching out again in a moment, or if urgent, please contact a crisis helpline."
+        )
 
     def _get_fallback_response(self, user_message: str, default_message: str) -> AgentResponse:
         """

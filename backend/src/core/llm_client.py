@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Any
 
-from openai import AsyncOpenAI, APIError, APITimeoutError, APIConnectionError
+from openai import APIConnectionError, APIError, APITimeoutError, AsyncOpenAI
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers import Provider
 

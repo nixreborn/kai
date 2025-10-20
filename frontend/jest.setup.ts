@@ -3,7 +3,7 @@ import '@testing-library/jest-dom'
 
 // Mock next-themes
 jest.mock('next-themes', () => ({
-  ThemeProvider: ({ children }) => children,
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
   useTheme: () => ({
     theme: 'light',
     setTheme: jest.fn(),
